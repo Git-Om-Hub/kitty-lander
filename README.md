@@ -1,2 +1,2 @@
 # kitty-lander
-A Physics based game inspired by Monkey Lander - from Totebo
+A Physics based game inspired from Monkey Lander - by Totebo
