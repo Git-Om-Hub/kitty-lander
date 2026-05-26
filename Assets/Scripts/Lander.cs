@@ -9,6 +9,10 @@ public class Kitty : MonoBehaviour
 
     private float upSpeed = 700f;
     private float rotationForce = 1.5f;
+
+    [SerializeField] private LanderLegs leftLeg;
+    [SerializeField] private LanderLegsRight rightLeg;
+    private bool landingCheck;
     private enum StateMachine
     {
         normal,
@@ -31,6 +35,7 @@ public class Kitty : MonoBehaviour
         {
             default:
                 sr.sprite = idle;
+
 
                 if (Keyboard.current.wKey.isPressed)
                 {
@@ -55,7 +60,7 @@ public class Kitty : MonoBehaviour
 
                 float currentRotation = rb.rotation;
 
-                currentRotation = Mathf.Clamp(currentRotation, -5f, 5f);
+                currentRotation = Mathf.Clamp(currentRotation, -2f, 2f);
 
                 rb.rotation = currentRotation;
                 break;
@@ -70,29 +75,61 @@ public class Kitty : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        //Landing only on landing Pad
+        if (state == StateMachine.gameOver || landingCheck) return;
 
-        if (!collision.gameObject.TryGetComponent(out Pad pad))
+        if (collision.gameObject.TryGetComponent(out Pad pad))
         {
-            Debug.Log("Crash");
-            return;
+            // Wait exactly 0.05 seconds for BOTH legs to register contact before checking results
+            Invoke(nameof(EvaluateLandingStatus), 0.15f);
         }
-
-        float landingSpeed = collision.relativeVelocity.magnitude;
-        float safeLanding = 3;
-        if(landingSpeed > safeLanding)
+        else
         {
-            Debug.Log("Crash");
-            return;
+            Debug.Log("Hit an obstacle! Crash!");
+            TriggerCrash();
         }
-
-        sr.sprite = happy;
-        state = StateMachine.gameOver;
-        
-
-
     }
 
+    private void EvaluateLandingStatus()
+    {
+        // Safety check in case we crashed via obstacle during the delay window
+        if (state == StateMachine.gameOver) return;
+
+        float maxLandingSpeed = 1f;
+
+        // Check if BOTH legs successfully stabilized on the pad during the buffer window
+        if (leftLeg.isGrounded && rightLeg.isGrounded)
+        {
+            if (Mathf.Abs(rb.linearVelocity.y) <= maxLandingSpeed)
+            {
+                Debug.Log("Successful Landing!");
+                landingCheck = true;
+                state = StateMachine.gameOver;
+                sr.sprite = happy;
+
+                // Freeze the ship beautifully on the pad
+                //rb.linearVelocity = Vector2.zero;
+                //rb.angularVelocity = 0f;
+                //rb.bodyType = RigidbodyType2D.Kinematic;
+            }
+            else
+            {
+                Debug.Log("Too fast! Crash!");
+                TriggerCrash();
+            }
+        }
+        else
+        {
+            // One leg missed or the main body slammed down single-sided
+            Debug.Log("Body hit the pad before legs stabilized! Crash!");
+            TriggerCrash();
+        }
+    }
+
+    private void TriggerCrash()
+    {
+        state = StateMachine.gameOver;
+        // Set your crash sprite or trigger explosion logic here
+    }
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.gameObject.TryGetComponent(out CatFood fishFood))

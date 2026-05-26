@@ -9,7 +9,7 @@ public class Pad : MonoBehaviour
     }
     private void Start()
     {
-        Hide();
+       // Hide();
     }
     private void Hide()
     {
